@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Attendance App</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>Facial Recognition Attendance System</h1>
+        <p>Welcome, Teacher!</p>
+        <a href="{{ url_for('register') }}" class="nav-link">Register New Face</a>
+
+        <div class="camera-section">
+            <div id="camera-container">
+                <video id="video" width="640" height="480" autoplay playsinline muted></video>
+                <canvas id="canvas" width="640" height="480" style="display:none;"></canvas>
+            </div>
+            
+            <div class="button-group">
+                <button id="snap" class="primary-button">Mark Attendance</button>
+            </div>
+        </div>
+
+        <div id="attendance-list">
+            <h2>Recent Attendance</h2>
+            <ul>
+                {% for attendance, student in attendance_records %}
+                    <li>{{ student.name }} - {{ attendance.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        <div id="status-message"></div>
+    </div>
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>

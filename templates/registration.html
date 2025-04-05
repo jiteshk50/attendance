@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register Face - Attendance System</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>Register New Face</h1>
+        <a href="/" class="nav-link">Back to Attendance</a>
+
+        <div id="registration-form">
+            <div class="form-group">
+                <label for="name">Full Name:</label>
+                <input type="text" id="name" name="name" required>
+            </div>
+            
+            <div class="camera-section">
+                <div id="camera-container">
+                    <video id="video" width="640" height="480" autoplay playsinline muted></video>
+                    <canvas id="canvas" width="640" height="480" style="display:none;"></canvas>
+                </div>
+                
+                <div class="button-group">
+                    <button id="capture" class="primary-button">Capture Photo</button>
+                    <button id="register" class="secondary-button" disabled>Register Face</button>
+                </div>
+
+                <div id="preview-container" style="display:none;">
+                    <h3>Preview:</h3>
+                    <img id="preview" src="" alt="Captured photo">
+                    <p>Is this photo good? If not, you can retake it.</p>
+                </div>
+            </div>
+        </div>
+
+        <div id="status-message"></div>
+    </div>
+    <script src="{{ url_for('static', filename='registration.js') }}"></script>
+</body>
+</html>
