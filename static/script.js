@@ -3,9 +3,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const video = document.getElementById('video');
     const canvas = document.getElementById('canvas');
     const snapButton = document.getElementById('snap');
+    const switchCameraButton = document.getElementById('switch-camera');
     const attendanceList = document.getElementById('attendance-list').querySelector('ul');
     const statusMessage = document.getElementById('status-message');
     const context = canvas.getContext('2d');
+
+    // Track current camera
+    let currentFacingMode = 'user';
+    let currentStream = null;
 
     // Check for camera support
     async function checkCameraSupport() {
@@ -25,16 +30,21 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Access the user's webcam with improved error handling
-    async function setupCamera() {
+    async function setupCamera(facingMode = 'user') {
         try {
             await checkCameraSupport();
+
+            // Stop previous stream if it exists
+            if (currentStream) {
+                currentStream.getTracks().forEach(track => track.stop());
+            }
 
             // Specify preferred camera settings
             const constraints = {
                 video: {
                     width: { ideal: 640 },
                     height: { ideal: 480 },
-                    facingMode: "user"
+                    facingMode: facingMode
                 },
                 audio: false
             };
@@ -42,6 +52,8 @@ document.addEventListener('DOMContentLoaded', () => {
             // Request camera access with specific constraints
             const stream = await navigator.mediaDevices.getUserMedia(constraints);
             video.srcObject = stream;
+            currentStream = stream;
+            currentFacingMode = facingMode;
             
             // Wait for video to be loaded
             await new Promise((resolve) => {
@@ -120,6 +132,22 @@ document.addEventListener('DOMContentLoaded', () => {
             showStatus('Failed to process attendance. Please try again.', 'error');
         } finally {
             snapButton.disabled = false;
+        }
+    });
+
+    // Handle camera switch
+    switchCameraButton.addEventListener('click', async () => {
+        const newFacingMode = currentFacingMode === 'user' ? 'environment' : 'user';
+        try {
+            switchCameraButton.disabled = true;
+            await setupCamera(newFacingMode);
+            showStatus(`Switched to ${newFacingMode === 'user' ? 'front' : 'back'} camera`, "success");
+        } catch (err) {
+            showStatus(`Failed to switch camera: ${err.message}`, "error");
+            // Try to revert to the previous camera
+            await setupCamera(currentFacingMode);
+        } finally {
+            switchCameraButton.disabled = false;
         }
     });
 

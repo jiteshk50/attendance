@@ -3,10 +3,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const canvas = document.getElementById('canvas');
     const captureButton = document.getElementById('capture');
     const registerButton = document.getElementById('register');
+    const switchCameraButton = document.getElementById('switch-camera');
     const preview = document.getElementById('preview');
     const previewContainer = document.getElementById('preview-container');
     const nameInput = document.getElementById('name');
     const statusMessage = document.getElementById('status-message');
+
+    // Track current camera
+    let currentFacingMode = 'user';
+    let currentStream = null;
 
     // Check for camera support
     async function checkCameraSupport() {
@@ -26,16 +31,21 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Access the webcam with improved setup
-    async function startVideo() {
+    async function startVideo(facingMode = 'user') {
         try {
             await checkCameraSupport();
             
+            // Stop previous stream if it exists
+            if (currentStream) {
+                currentStream.getTracks().forEach(track => track.stop());
+            }
+
             // Specify preferred camera settings
             const constraints = {
                 video: {
                     width: { ideal: 640 },
                     height: { ideal: 480 },
-                    facingMode: "user"
+                    facingMode: facingMode
                 },
                 audio: false
             };
@@ -43,6 +53,8 @@ document.addEventListener('DOMContentLoaded', () => {
             // Request camera access with specific constraints
             const stream = await navigator.mediaDevices.getUserMedia(constraints);
             video.srcObject = stream;
+            currentStream = stream;
+            currentFacingMode = facingMode;
 
             // Wait for video to be loaded
             await new Promise((resolve) => {
@@ -62,6 +74,22 @@ document.addEventListener('DOMContentLoaded', () => {
             captureButton.disabled = true;
         }
     }
+
+    // Handle camera switch
+    switchCameraButton.addEventListener('click', async () => {
+        const newFacingMode = currentFacingMode === 'user' ? 'environment' : 'user';
+        try {
+            switchCameraButton.disabled = true;
+            await startVideo(newFacingMode);
+            showStatus(`Switched to ${newFacingMode === 'user' ? 'front' : 'back'} camera`, "success");
+        } catch (err) {
+            showStatus(`Failed to switch camera: ${err.message}`, "error");
+            // Try to revert to the previous camera
+            await startVideo(currentFacingMode);
+        } finally {
+            switchCameraButton.disabled = false;
+        }
+    });
 
     // Enhanced status message handling
     function showStatus(message, type = 'info') {
