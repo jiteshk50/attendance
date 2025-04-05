@@ -57,13 +57,47 @@ h1, h2 {
     border-radius: 8px;
 }
 
+.camera-container {
+    position: relative;
+    width: 100%;
+    max-width: 640px;
+    margin: 0 auto;
+}
+
 #camera-container {
+    position: relative;
     width: 640px;
     height: 480px;
     border: 2px solid #ddd;
     border-radius: 8px;
     overflow: hidden;
     background-color: #000;
+}
+
+.face-box {
+    display: none;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 200px;
+    height: 200px;
+    border: 2px solid #00ff00;
+    border-radius: 8px;
+    pointer-events: none;
+}
+
+.name-label {
+    position: absolute;
+    top: -30px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: rgba(0, 0, 0, 0.7);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 14px;
+    white-space: nowrap;
 }
 
 #video {
@@ -160,6 +194,9 @@ button {
     font-size: 16px;
     margin: 5px;
     transition: background-color 0.3s ease;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
 }
 
 button:disabled {
@@ -259,6 +296,72 @@ button:hover:not(:disabled) {
     background-color: #e9ecef;
 }
 
+/* Animation styles */
+@keyframes scanning {
+    0% {
+        box-shadow: 0 0 0 0 rgba(0, 123, 255, 0.4);
+    }
+    100% {
+        box-shadow: 0 0 0 20px rgba(0, 123, 255, 0);
+    }
+}
+
+@keyframes processing {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.scanning {
+    animation: scanning 1.5s infinite;
+}
+
+.processing-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 10;
+}
+
+.processing-spinner {
+    width: 50px;
+    height: 50px;
+    border: 5px solid #f3f3f3;
+    border-top: 5px solid #007bff;
+    border-radius: 50%;
+    animation: processing 1s linear infinite;
+}
+
+.face-box {
+    position: absolute;
+    border: 2px solid #00ff00;
+    display: none;
+    pointer-events: none;
+}
+
+.success-flash {
+    animation: successFlash 0.5s ease-out;
+}
+
+@keyframes successFlash {
+    0% { background: rgba(40, 167, 69, 0.5); }
+    100% { background: transparent; }
+}
+
+.error-flash {
+    animation: errorFlash 0.5s ease-out;
+}
+
+@keyframes errorFlash {
+    0% { background: rgba(220, 53, 69, 0.5); }
+    100% { background: transparent; }
+}
+
 /* Responsive improvements for camera */
 @media (max-width: 768px) {
     .container {
@@ -298,5 +401,39 @@ button:hover:not(:disabled) {
     .primary-button {
         width: 100%;
         max-width: 300px;
+    }
+
+    .processing-overlay {
+        border-radius: 8px;
+    }
+    
+    .processing-spinner {
+        width: 40px;
+        height: 40px;
+        border-width: 4px;
+    }
+}
+
+/* Mobile touch improvements */
+@media (hover: none) {
+    .button-group button {
+        min-height: 44px; /* Better touch target size */
+        margin: 8px 0;
+    }
+    
+    .camera-section {
+        touch-action: manipulation;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    #camera-container {
+        max-height: calc(100vh - 300px);
+    }
+}
+
+/* Prevent zooming when tapping inputs on iOS */
+@media screen and (-webkit-min-device-pixel-ratio: 0) {
+    input {
+        font-size: 16px;
     }
 }

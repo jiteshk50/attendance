@@ -1,5 +1,4 @@
-document.addEventListener('DOMContentLoaded', () => {
-    // Get references to HTML elements
+document.addEventListener('DOMContentLoaded', async () => {
     const video = document.getElementById('video');
     const canvas = document.getElementById('canvas');
     const snapButton = document.getElementById('snap');
@@ -7,153 +6,143 @@ document.addEventListener('DOMContentLoaded', () => {
     const attendanceList = document.getElementById('attendance-list').querySelector('ul');
     const statusMessage = document.getElementById('status-message');
     const context = canvas.getContext('2d');
+    let processingOverlay = document.querySelector('.processing-overlay');
+    let faceBox = document.querySelector('.face-box');
+    let cameraContainer = document.getElementById('camera-container');
 
-    // Track current camera
-    let currentFacingMode = 'user';
-    let currentStream = null;
+    let currentStream;
+    let detectionInterval;
+    let cameras = [];
+    let currentCameraIndex = 0;
 
-    // Check for camera support
-    async function checkCameraSupport() {
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-            throw new Error('Your browser does not support camera access. Please use a modern browser like Chrome, Firefox, or Edge.');
-        }
-        
+    async function getCameras() {
         try {
             const devices = await navigator.mediaDevices.enumerateDevices();
-            const videoDevices = devices.filter(device => device.kind === 'videoinput');
-            if (videoDevices.length === 0) {
-                throw new Error('No camera detected. Please connect a camera and refresh the page.');
-            }
+            cameras = devices.filter(device => device.kind === 'videoinput');
+            return cameras;
         } catch (err) {
-            throw new Error('Failed to detect camera devices: ' + err.message);
+            console.error('Error getting cameras:', err);
+            return [];
         }
     }
 
-    // Access the user's webcam with improved error handling
-    async function setupCamera(facingMode = 'user') {
+    async function startCamera(deviceId = null) {
         try {
-            await checkCameraSupport();
+            const constraints = {
+                video: deviceId ? { deviceId: { exact: deviceId } } : true,
+                audio: false
+            };
 
-            // Stop previous stream if it exists
             if (currentStream) {
                 currentStream.getTracks().forEach(track => track.stop());
             }
 
-            // Specify preferred camera settings
-            const constraints = {
-                video: {
-                    width: { ideal: 640 },
-                    height: { ideal: 480 },
-                    facingMode: facingMode
-                },
-                audio: false
+            currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+            video.srcObject = currentStream;
+
+            video.onloadedmetadata = () => {
+                video.play();
+                startFaceDetection();
             };
-
-            // Request camera access with specific constraints
-            const stream = await navigator.mediaDevices.getUserMedia(constraints);
-            video.srcObject = stream;
-            currentStream = stream;
-            currentFacingMode = facingMode;
-            
-            // Wait for video to be loaded
-            await new Promise((resolve) => {
-                video.onloadedmetadata = () => {
-                    resolve();
-                };
-            });
-
-            // Start playing the video
-            await video.play();
-            console.log("Camera access granted and stream set.");
-            snapButton.disabled = false;
-            showStatus("Camera ready", "success");
         } catch (err) {
-            console.error("Error accessing camera:", err);
-            showStatus(err.message || 'Could not access the camera. Please ensure your camera is connected and permissions are granted.', "error");
-            snapButton.disabled = true;
+            console.error('Error starting camera:', err);
+            statusMessage.textContent = 'Error accessing camera. Please make sure camera permissions are granted.';
+            statusMessage.className = 'error';
         }
     }
 
-    // Enhanced status message handling
-    function showStatus(message, type = 'info') {
-        statusMessage.textContent = message;
-        statusMessage.className = `status-message ${type}`;
-        if (type === 'success') {
-            statusMessage.style.color = 'green';
-        } else if (type === 'error') {
-            statusMessage.style.color = 'red';
-        } else {
-            statusMessage.style.color = '#004085';
+    switchCameraButton.addEventListener('click', async () => {
+        if (cameras.length < 2) {
+            await getCameras();
         }
+        currentCameraIndex = (currentCameraIndex + 1) % cameras.length;
+        await startCamera(cameras[currentCameraIndex].deviceId);
+    });
+
+    function startFaceDetection() {
+        if (detectionInterval) {
+            clearInterval(detectionInterval);
+        }
+
+        detectionInterval = setInterval(async () => {
+            try {
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(video, 0, 0);
+
+                const imageData = canvas.toDataURL('image/jpeg', 0.8);
+
+                const response = await fetch('/detect_face', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        image_data: imageData
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.detected) {
+                    const nameLabel = document.createElement('div');
+                    nameLabel.className = 'name-label';
+                    nameLabel.textContent = result.name;
+
+                    faceBox.style.display = 'block';
+                    faceBox.style.border = result.name !== 'Unknown' ? '2px solid #00ff00' : '2px solid #ff9900';
+                    faceBox.innerHTML = '';
+                    faceBox.appendChild(nameLabel);
+                } else {
+                    faceBox.style.display = 'none';
+                }
+            } catch (err) {
+                console.error('Error during face detection:', err);
+            }
+        }, 500);
     }
 
-    // Enhanced capture photo handler
     snapButton.addEventListener('click', async () => {
-        if (!video.srcObject) {
-            showStatus('Camera not ready. Please wait or refresh the page.', 'error');
-            return;
-        }
-
-        snapButton.disabled = true;
         try {
-            console.log("Capturing image...");
-            context.drawImage(video, 0, 0, canvas.width, canvas.height);
-            const imageDataURL = canvas.toDataURL('image/jpeg');
-            showStatus('Processing...', 'info');
+            processingOverlay.style.display = 'flex';
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0);
+
+            const imageData = canvas.toDataURL('image/jpeg', 0.8);
 
             const response = await fetch('/process_image', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ image_data: imageDataURL }),
+                body: JSON.stringify({
+                    image_data: imageData
+                })
             });
 
-            const data = await response.json();
-            console.log("Server response:", data);
+            const result = await response.json();
+            statusMessage.textContent = result.message;
+            statusMessage.className = result.status;
 
-            // Handle different status types
-            if (data.status === 'success' || data.status === 'info') {
-                if (data.student_name !== 'Unknown') {
-                    const listItem = document.createElement('li');
-                    listItem.textContent = `${data.student_name} - ${data.timestamp}`;
-                    if (attendanceList.firstChild) {
-                        attendanceList.insertBefore(listItem, attendanceList.firstChild);
-                    } else {
-                        attendanceList.appendChild(listItem);
-                    }
+            if (result.status === 'success') {
+                if (attendanceList) {
+                    const li = document.createElement('li');
+                    li.textContent = `${result.student_name} - ${result.timestamp}`;
+                    attendanceList.insertBefore(li, attendanceList.firstChild);
                 }
-                showStatus(data.message, data.status);
-            } else {
-                showStatus(data.message, 'error');
             }
-        } catch (error) {
-            console.error('Error processing attendance:', error);
-            showStatus('Failed to process attendance. Please try again.', 'error');
-        } finally {
-            snapButton.disabled = false;
-        }
-    });
-
-    // Handle camera switch
-    switchCameraButton.addEventListener('click', async () => {
-        const newFacingMode = currentFacingMode === 'user' ? 'environment' : 'user';
-        try {
-            switchCameraButton.disabled = true;
-            await setupCamera(newFacingMode);
-            showStatus(`Switched to ${newFacingMode === 'user' ? 'front' : 'back'} camera`, "success");
         } catch (err) {
-            showStatus(`Failed to switch camera: ${err.message}`, "error");
-            // Try to revert to the previous camera
-            await setupCamera(currentFacingMode);
+            console.error('Error processing image:', err);
+            statusMessage.textContent = 'Error processing image. Please try again.';
+            statusMessage.className = 'error';
         } finally {
-            switchCameraButton.disabled = false;
+            processingOverlay.style.display = 'none';
         }
     });
 
-    // Initialize camera setup when the page loads
-    setupCamera().catch(err => {
-        console.error('Failed to setup camera:', err);
-        showStatus('Failed to setup camera. Please refresh the page and try again.', 'error');
-    });
+    await getCameras();
+    await startCamera();
 });

@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
     <title>Attendance App</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
@@ -13,15 +14,19 @@
         <a href="{{ url_for('register') }}" class="nav-link">Register New Face</a>
 
         <div class="camera-section">
-            <div id="camera-container">
-                <video id="video" width="640" height="480" autoplay playsinline muted></video>
-                <canvas id="canvas" width="640" height="480" style="display:none;"></canvas>
+            <div class="camera-container" id="camera-container">
+                <video id="video" autoplay playsinline></video>
+                <canvas id="canvas" style="display: none;"></canvas>
+                <div class="face-box"></div>
+                <div class="processing-overlay">
+                    <div class="processing-spinner"></div>
+                </div>
             </div>
-            
             <div class="button-group">
-                <button id="switch-camera" class="secondary-button">Switch Camera</button>
                 <button id="snap" class="primary-button">Mark Attendance</button>
+                <button id="switch-camera" class="secondary-button">Switch Camera</button>
             </div>
+            <div id="status-message"></div>
         </div>
 
         <div id="attendance-list">
@@ -32,8 +37,6 @@
                 {% endfor %}
             </ul>
         </div>
-
-        <div id="status-message"></div>
     </div>
     <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>
